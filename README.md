@@ -40,4 +40,6 @@ cd shop_project
 python -m venv env
 source venv/scripts/activate(for window) or  source venv/bin/activate (Linux)
 pip install -r requirement.txt
+python manage.py makemigrations ### create model migration file
+python manage.py migrate ## create database table
 python manage.py runserver (run locally)
