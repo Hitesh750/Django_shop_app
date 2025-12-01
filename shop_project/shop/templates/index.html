@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Product Shop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script>
+    const STRIPE_PUBLISHABLE_KEY = "{{ STRIPE_PUBLISHABLE_KEY }}";
+  </script>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <h1>Product Shop</h1>
+    <p class="text-muted"> Enter quantities</p>
+
+    <div class="row">
+      <div class="col-md-8">
+        <form id="cart-form">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Products</h5>
+              {% for p in products %}
+                <div class="d-flex align-items-center mb-2">
+                  <div style="flex:1">
+                    <strong>{{ p.name }}</strong><br>
+                    <small class="text-muted">{{ p.description }}</small>
+                  </div>
+                  <div style="width:120px" class="text-end">
+                    <div>${{ p.price_display }}</div>
+                    <input type="number" min="0" class="form-control mt-1 quantity" name="q_{{ p.id }}" data-product="{{ p.id }}" value="0">
+                  </div>
+                </div>
+                <hr>
+              {% endfor %}
+              <div class="d-flex justify-content-end">
+                <button id="buy-btn" class="btn btn-primary">Buy</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">My Orders (paid)</h5>
+            {% if orders %}
+              <ul class="list-group">
+                {% for o in orders %}
+                  <li class="list-group-item">
+                    <div><strong>Order #{{ o.id }}</strong> — ${{ o.total_display }}</div>
+                    <div class="small text-muted">{{ o.created_at }}</div>
+                    <ul>
+                      {% for it in o.items.all %}
+                        <li>{{ it.product.name }} x{{ it.quantity }}</li>
+                      {% endfor %}
+                    </ul>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">No paid orders yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+async function postJSON(url, data) {
+  const resp = await fetch(url, {method:"POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(data)});
+  return resp.json();
+}
+
+document.getElementById("buy-btn").addEventListener("click", async function(e){
+  e.preventDefault();
+  const btn = this;
+  btn.disabled = true;
+  btn.textContent = "Processing...";
+
+  const quantities = Array.from(document.querySelectorAll(".quantity")).map(el => ({product_id: el.dataset.product, quantity: parseInt(el.value || "0", 10)}));
+  const items = quantities.filter(it=>it.quantity>0);
+
+  if (!items.length) {
+    alert("Please add at least one item.");
+    btn.disabled = false;
+    btn.textContent = "Buy";
+    return;
+  }
+
+  try {
+    const resp = await postJSON("{% url 'create-checkout-session' %}", {items});
+    if (resp.error) {
+      alert("Error: " + resp.error);
+      btn.disabled = false;
+      btn.textContent = "Buy";
+      return;
+    }
+    // redirect to Stripe Checkout
+    window.location = resp.checkout_url;
+  } catch (err) {
+    alert("Network error");
+    btn.disabled = false;
+    btn.textContent = "Buy";
+  }
+});
+</script>
+</body>
+</html>
